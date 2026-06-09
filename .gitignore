@@ -1,9 +1,13 @@
 .env
 .venv/
 __pycache__/
+**/__pycache__/
 *.pyc
 outputs/*
 !outputs/.gitkeep
+samples/*.mp4
+samples/*.avi
+samples/*.mov
 models/
 .cache/
 *.mp4

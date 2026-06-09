@@ -1,77 +1,100 @@
 from __future__ import annotations
 
-from datetime import datetime
-from pathlib import Path
-import time
-
-import cv2
+import argparse
 
 from .config import load_config
-from .danger_zone import draw_danger_zone, parse_polygon_points
-from .frame_reader import VideoStreamReader
+from .event_analyzer import VideoEventAnalyzer, save_events_json
 from .ollama_client import OllamaVisionClient
+from .qa_over_events import answer_question_over_events
+from .video_sampler import sample_video_segments
 
 
-OUTPUT_DIR = Path("outputs")
-LATEST_FRAME_PATH = OUTPUT_DIR / "latest_frame.jpg"
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Analyze video-file events with sampled frames and Ollama VLM."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    analyze = subparsers.add_parser("analyze", help="Analyze a video and save events JSON.")
+    analyze.add_argument("--video", help="Path to input video file.")
+
+    ask = subparsers.add_parser("ask", help="Ask a question over saved events JSON.")
+    ask.add_argument("--question", help="Question to answer from analyzed events.")
+
+    analyze_ask = subparsers.add_parser(
+        "analyze-ask",
+        help="Analyze a video, save events JSON, then answer a question.",
+    )
+    analyze_ask.add_argument("--video", help="Path to input video file.")
+    analyze_ask.add_argument("--question", help="Question to answer from analyzed events.")
+
+    return parser
+
+
+def analyze_video(config, video_path: str) -> int:
+    print(f"Sampling video: {video_path}")
+    try:
+        segments = sample_video_segments(
+            video_path=video_path,
+            segment_seconds=config.segment_seconds,
+            frames_per_segment=config.frames_per_segment,
+        )
+    except (RuntimeError, ValueError) as exc:
+        print(f"Video analysis failed: {exc}")
+        return 1
+
+    print(f"Sampled {len(segments)} segment(s).")
+
+    client = OllamaVisionClient(config.ollama_base_url, config.ollama_model)
+    analyzer = VideoEventAnalyzer(client)
+    segment_results = analyzer.analyze_segments(segments)
+    save_events_json(
+        output_path=config.output_events_path,
+        video_path=video_path,
+        segment_seconds=config.segment_seconds,
+        frames_per_segment=config.frames_per_segment,
+        segment_results=segment_results,
+    )
+
+    print(f"Saved events to {config.output_events_path}")
+    return 0
+
+
+def ask_question(config, question: str) -> int:
+    client = OllamaVisionClient(config.ollama_base_url, config.ollama_model)
+    answer = answer_question_over_events(config.output_events_path, question, client)
+    print(answer)
+    return 0
 
 
 def main() -> int:
+    args = build_parser().parse_args()
     config = load_config()
-    OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
-    danger_zone_points = []
-    if config.enable_danger_zone:
-        try:
-            danger_zone_points = parse_polygon_points(config.danger_zone_points)
-        except ValueError as exc:
-            print(f"Danger zone disabled: {exc}")
+    if args.command == "analyze":
+        video_path = args.video or config.video_source
+        return analyze_video(config, video_path)
 
-    try:
-        reader = VideoStreamReader(config.video_source)
-    except RuntimeError as exc:
-        print(exc)
-        return 1
+    if args.command == "ask":
+        question = args.question or config.question
+        if not question:
+            print("A question is required. Use --question or set QUESTION in .env.")
+            return 1
+        return ask_question(config, question)
 
-    client = OllamaVisionClient(config.ollama_base_url, config.ollama_model)
-    last_sample_time = 0.0
+    if args.command == "analyze-ask":
+        video_path = args.video or config.video_source
+        question = args.question or config.question
+        if not question:
+            print("A question is required. Use --question or set QUESTION in .env.")
+            return 1
 
-    print("VSS local core started. Press 'q' in the preview window to quit.")
-    print(f"Video source: {config.video_source}")
-    print(f"Ollama: {config.ollama_base_url} model={config.ollama_model}")
+        analyze_status = analyze_video(config, video_path)
+        if analyze_status != 0:
+            return analyze_status
+        return ask_question(config, question)
 
-    try:
-        while True:
-            ok, frame = reader.read_frame()
-            if not ok:
-                print("Could not read frame from video source. Retrying...")
-                time.sleep(1.0)
-                continue
-
-            if danger_zone_points:
-                frame = draw_danger_zone(frame, danger_zone_points)
-
-            cv2.imshow("vss-local-core", frame)
-
-            now = time.monotonic()
-            if now - last_sample_time >= config.sample_interval_sec:
-                last_sample_time = now
-                if cv2.imwrite(str(LATEST_FRAME_PATH), frame):
-                    answer = client.analyze_image(str(LATEST_FRAME_PATH), config.question)
-                else:
-                    answer = f"Failed to write frame to {LATEST_FRAME_PATH}"
-
-                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                print(f"\n[{timestamp}]")
-                print(answer)
-
-            if cv2.waitKey(1) & 0xFF == ord("q"):
-                break
-    finally:
-        reader.release()
-        cv2.destroyAllWindows()
-
-    return 0
+    return 1
 
 
 if __name__ == "__main__":

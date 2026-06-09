@@ -1,17 +1,19 @@
 # vss-local-core
 
-Minimal local VSS-core prototype for sampling camera frames and asking a local Ollama vision-language model for a brief safety-oriented description.
+Minimal local video event analysis prototype for MP4/video files. It samples short video segments, sends selected frames to a local Ollama vision-language model, saves timestamped event summaries to JSON, and can answer questions from those saved events.
 
 ## Architecture
 
-Camera / RTSP / MP4 -> OpenCV -> frame sampler -> Qwen3-VL via Ollama -> terminal answer
+Video -> segment sampler -> sampled frames -> Qwen3-VL via Ollama -> timestamped events -> Q&A
 
-This prototype uses sampled frames first, not full continuous video inference. It is intended as a simple local baseline before adding richer video understanding, tracking, rules, and alert workflows.
+The system does not send the full video directly to the model. It reads the video with OpenCV, splits it into short segments, samples a few frames from each segment, asks Qwen3-VL what is visible in that segment, and writes the result to `outputs/events.json`.
+
+Timestamps are approximate because the model analyzes sampled frames, not every frame.
 
 ## Requirements
 
 - Python 3.10+
-- OpenCV-compatible webcam, RTSP stream, or MP4 file
+- OpenCV-readable video file
 - Ollama running locally
 - Ollama model `qwen3-vl:8b`
 
@@ -26,7 +28,7 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-On Windows PowerShell, activate the virtual environment with:
+On Windows PowerShell:
 
 ```powershell
 .\.venv\Scripts\Activate.ps1
@@ -35,96 +37,102 @@ On Windows PowerShell, activate the virtual environment with:
 ## Ollama Setup
 
 ```bash
-curl -fsSL https://ollama.com/install.sh | sh
 ollama pull qwen3-vl:8b
 ollama run qwen3-vl:8b
 ```
 
-The default Ollama endpoint is:
+Default endpoint:
 
 ```text
 http://localhost:11434
 ```
 
-## Run
-
-```bash
-python -m src.main
-```
-
-Press `q` in the OpenCV preview window to quit.
-
 ## Configuration
 
-Copy `.env.example` to `.env`, then adjust values as needed.
-
-### Webcam Example
+Copy `.env.example` to `.env` and adjust values:
 
 ```env
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=qwen3-vl:8b
-VIDEO_SOURCE=0
-SAMPLE_INTERVAL_SEC=2
-QUESTION=You are a factory CCTV visual assistant. Analyze this camera frame. Describe visible people, machines, vehicles, and possible safety risks. Answer briefly.
-ENABLE_DANGER_ZONE=false
+VIDEO_SOURCE=sample.mp4
+SEGMENT_SECONDS=5
+FRAMES_PER_SEGMENT=3
+OUTPUT_EVENTS_PATH=outputs/events.json
+QUESTION=
 ```
 
-### MP4 Example
+Increasing `FRAMES_PER_SEGMENT` gives the model more visual context, but inference becomes slower because more images are sent per segment.
 
-```env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen3-vl:8b
-VIDEO_SOURCE=D:\videos\factory-test.mp4
-SAMPLE_INTERVAL_SEC=3
-ENABLE_DANGER_ZONE=false
+## Run
+
+### Analyze Video
+
+```bash
+python -m src.main analyze --video samples/factory.mp4
 ```
 
-### RTSP Example
-
-```env
-OLLAMA_BASE_URL=http://localhost:11434
-OLLAMA_MODEL=qwen3-vl:8b
-VIDEO_SOURCE=rtsp://user:password@192.168.1.20:554/stream1
-SAMPLE_INTERVAL_SEC=2
-ENABLE_DANGER_ZONE=false
-```
-
-### Danger Zone Example
-
-```env
-ENABLE_DANGER_ZONE=true
-DANGER_ZONE_POINTS=100,200;500,200;520,420;80,420
-```
-
-Danger-zone points use `x,y` pairs separated by semicolons. When enabled, the app draws a red polygon overlay and labels it `DANGER ZONE` before saving and sending the sampled frame to Ollama.
-
-## Environment Variables
-
-| Name | Default | Description |
-| --- | --- | --- |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Local Ollama server URL. |
-| `OLLAMA_MODEL` | `qwen3-vl:8b` | Vision-language model name in Ollama. |
-| `VIDEO_SOURCE` | `0` | Webcam index, RTSP URL, or video file path. |
-| `SAMPLE_INTERVAL_SEC` | `2` | Seconds between sampled frames sent to Ollama. |
-| `QUESTION` | Safety assistant prompt | Prompt sent with each sampled frame. |
-| `ENABLE_DANGER_ZONE` | `false` | Draw a danger-zone overlay when true. |
-| `DANGER_ZONE_POINTS` | empty | Polygon points like `100,200;500,200;520,420;80,420`. |
-
-## Outputs
-
-The latest sampled frame is written to:
+This samples frames into `outputs/frames/`, analyzes each segment with Ollama, and saves:
 
 ```text
-outputs/latest_frame.jpg
+outputs/events.json
 ```
 
-Generated output files are ignored by git. Only `outputs/.gitkeep` is tracked.
+### Ask About Saved Events
+
+```bash
+python -m src.main ask --question "Trong video co nhung su kien gi?"
+```
+
+The QA mode uses only `outputs/events.json`. It does not send video frames to the model.
+
+### Analyze And Ask
+
+```bash
+python -m src.main analyze-ask --video samples/factory.mp4 --question "Co hanh vi nguy hiem nao khong? Xay ra luc nao?"
+```
+
+This analyzes the video, saves the event JSON, then answers the question from the generated events.
+
+## Output Format
+
+`outputs/events.json` has this shape:
+
+```json
+{
+  "video_path": "samples/factory.mp4",
+  "segment_seconds": 5,
+  "frames_per_segment": 3,
+  "segments": [
+    {
+      "segment_id": "segment_0001",
+      "start_time": "00:00:00",
+      "end_time": "00:00:05",
+      "summary": "short description of what happens in this segment",
+      "events": [
+        {
+          "event_type": "person_visible",
+          "description": "short event description",
+          "approx_time": "00:00:02",
+          "risk_level": "safe"
+        }
+      ],
+      "has_person": true,
+      "has_vehicle": false,
+      "has_unsafe_behavior": false,
+      "risk_level": "safe"
+    }
+  ]
+}
+```
+
+Generated frames and event JSON are ignored by git. Only `outputs/.gitkeep` is tracked.
 
 ## Future Extensions
 
-- Object/person tracking
+- Danger zone overlay
+- Object detection
+- Tracking
 - Safety rule engine
 - Clip-based VLM analysis
-- Alert verification
 - Report generation
-- Web dashboard
+- Dashboard

@@ -12,25 +12,44 @@ class OllamaVisionClient:
         self.model = model
         self.timeout_sec = timeout_sec
 
-    def analyze_image(self, image_path: str, question: str) -> str:
-        try:
-            image_bytes = Path(image_path).read_bytes()
-        except OSError as exc:
-            return f"Error reading image: {exc}"
+    def analyze_images(self, image_paths: list[str], prompt: str) -> str:
+        encoded_images = []
+        for image_path in image_paths:
+            try:
+                image_bytes = Path(image_path).read_bytes()
+            except OSError as exc:
+                return f"Error reading image {image_path}: {exc}"
+            encoded_images.append(base64.b64encode(image_bytes).decode("utf-8"))
 
-        encoded_image = base64.b64encode(image_bytes).decode("utf-8")
         payload = {
             "model": self.model,
             "messages": [
                 {
                     "role": "user",
-                    "content": question,
-                    "images": [encoded_image],
+                    "content": prompt,
+                    "images": encoded_images,
                 }
             ],
             "stream": False,
         }
 
+        return self._post_chat(payload)
+
+    def generate_text(self, prompt: str) -> str:
+        payload = {
+            "model": self.model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt,
+                }
+            ],
+            "stream": False,
+        }
+
+        return self._post_chat(payload)
+
+    def _post_chat(self, payload: dict) -> str:
         try:
             response = requests.post(
                 f"{self.base_url}/api/chat",
