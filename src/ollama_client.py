@@ -7,7 +7,7 @@ import requests
 
 
 class OllamaVisionClient:
-    def __init__(self, base_url: str, model: str, timeout_sec: float = 60.0):
+    def __init__(self, base_url: str, model: str, timeout_sec: float = 180.0):
         self.base_url = base_url.rstrip("/")
         self.model = model
         self.timeout_sec = timeout_sec
@@ -30,6 +30,10 @@ class OllamaVisionClient:
                     "images": encoded_images,
                 }
             ],
+            "format": "json",
+            "options": {
+                "temperature": 0,
+            },
             "stream": False,
         }
 

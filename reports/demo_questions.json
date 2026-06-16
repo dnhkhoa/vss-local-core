@@ -1,0 +1,38 @@
+[
+  {
+    "question": "Video nay o dau, boi canh la gi?",
+    "answer": "Office meeting room / I-Soft Meeting room. Video co nhieu nguoi lam viec quanh ban, laptop, hop, quat va cay trang tri.",
+    "evidence": [
+      "00:00:00-00:00:14",
+      "scene/location fields in events.json"
+    ]
+  },
+  {
+    "question": "Co bao nhieu nguoi trong video?",
+    "answer": "He thong thay toi da khoang 3 nguoi trong cung mot segment. Chua ket luan unique person count vi chua tracking identity.",
+    "evidence": [
+      "analysis_summary.max_visible_person_count = 3"
+    ]
+  },
+  {
+    "question": "Nhung nguoi do mac ao mau gi?",
+    "answer": "Co ao trang, ao vang/beige, ao xanh nhat va nguoi mac vest xanh/helmet o mot frame.",
+    "evidence": [
+      "people[].clothing_colors by segment"
+    ]
+  },
+  {
+    "question": "Trong video co laptop khong?",
+    "answer": "Co. Laptop xuat hien o nhieu segment tren ban lam viec.",
+    "evidence": [
+      "objects contains laptop"
+    ]
+  },
+  {
+    "question": "Nguoi ao vang co dang cam gi khong?",
+    "answer": "Co. Visual re-check tren frame lien quan thay nguoi ao vang dang cam mot vat trang/xanh.",
+    "evidence": [
+      "visual re-check over retrieved frames"
+    ]
+  }
+]

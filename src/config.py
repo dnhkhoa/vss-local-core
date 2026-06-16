@@ -12,6 +12,7 @@ class Config:
     segment_seconds: float
     frames_per_segment: int
     output_events_path: str
+    memory_db_path: str
     question: str
 
 
@@ -48,5 +49,6 @@ def load_config() -> Config:
         segment_seconds=_get_float("SEGMENT_SECONDS", 5.0),
         frames_per_segment=_get_int("FRAMES_PER_SEGMENT", 3),
         output_events_path=getenv("OUTPUT_EVENTS_PATH", "outputs/events.json"),
+        memory_db_path=getenv("MEMORY_DB_PATH", "outputs/video_memory.sqlite"),
         question=getenv("QUESTION", ""),
     )

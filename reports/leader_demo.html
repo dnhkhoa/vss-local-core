@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <title>VSS-mini Leader Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 32px; background: #f6f7f9; color: #172033; }
+    section { background: white; border: 1px solid #d8dee8; border-radius: 8px; padding: 18px; margin-bottom: 18px; }
+    h1, h2 { margin-top: 0; }
+    video, img { max-width: 100%; border: 1px solid #d8dee8; border-radius: 8px; background: #111; }
+    li { margin: 8px 0; }
+    code { background: #eef2f6; padding: 2px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>VSS-mini Progress Demo</h1>
+  <section>
+    <h2>Summary</h2>
+    <ul>
+      <li>Video: <code>danger_zone_checking_camera-1_1780970612_org.mp4</code></li>
+      <li>Segments analyzed: <strong>7</strong></li>
+      <li>Max visible people in a segment: <strong>3</strong></li>
+      <li>Unsafe segments: <strong>0</strong></li>
+    </ul>
+  </section>
+  <section>
+    <h2>Demo Video</h2>
+    <video src="vss_mini_demo.mp4" controls></video>
+  </section>
+  <section>
+    <h2>Evidence Contact Sheet</h2>
+    <img src="evidence_contact_sheet.jpg" alt="Evidence frames">
+  </section>
+  <section>
+    <h2>Implemented</h2>
+    <ul>
+      <li>Web Q&A UI</li>
+      <li>Structured video memory in <code>outputs/events.json</code></li>
+      <li>Fast Q&A for common questions</li>
+      <li>Visual re-check for harder questions using retrieved frames</li>
+    </ul>
+  </section>
+  <section>
+    <h2>Next AIM</h2>
+    <p>Add person/object tracking to answer identity and path questions across time.</p>
+  </section>
+</body>
+</html>

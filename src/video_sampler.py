@@ -40,6 +40,7 @@ def sample_video_segments(
             end_time_sec = min(start_time_sec + segment_seconds, reader.duration_seconds)
             segment_id = f"segment_{index + 1:04d}"
             frame_paths: list[str] = []
+            sampled_frames: list[dict] = []
 
             sample_times = _sample_times(
                 start_time_sec,
@@ -57,7 +58,15 @@ def sample_video_segments(
 
                 frame_path = frame_dir / f"{segment_id}_frame_{frame_index:04d}.jpg"
                 if cv2.imwrite(str(frame_path), frame):
-                    frame_paths.append(str(frame_path))
+                    saved_frame_path = str(frame_path)
+                    frame_paths.append(saved_frame_path)
+                    sampled_frames.append(
+                        {
+                            "path": saved_frame_path,
+                            "timestamp_sec": timestamp_sec,
+                            "timestamp": format_time(timestamp_sec),
+                        }
+                    )
                 else:
                     print(f"Failed to save sampled frame: {frame_path}")
 
@@ -69,6 +78,7 @@ def sample_video_segments(
                     "start_time_text": format_time(start_time_sec),
                     "end_time_text": format_time(end_time_sec),
                     "frame_paths": frame_paths,
+                    "sampled_frames": sampled_frames,
                 }
             )
     finally:

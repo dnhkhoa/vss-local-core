@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trợ lý hỏi đáp video</title>
+  <style>
+    :root {
+      --bg: #f4f6f8;
+      --panel: #ffffff;
+      --line: #d8dee8;
+      --text: #172033;
+      --muted: #667085;
+      --accent: #0f766e;
+      --accent-2: #134e4a;
+      --soft: #eef7f5;
+      --user: #e8f8f4;
+      --danger: #b42318;
+      --shadow: 0 14px 38px rgba(17, 24, 39, 0.10);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 18px;
+    }
+    .app {
+      min-height: 100vh;
+      display: grid;
+      grid-template-columns: 390px minmax(0, 1fr);
+    }
+    aside {
+      background: #fbfcfe;
+      border-right: 1px solid var(--line);
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 22px;
+    }
+    main {
+      min-width: 0;
+      max-height: 100vh;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+    }
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--line);
+      padding: 24px 30px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    h1, h2, p { margin: 0; letter-spacing: 0; }
+    h1 { font-size: 30px; line-height: 1.15; }
+    h2 { font-size: 22px; line-height: 1.25; }
+    p { line-height: 1.5; }
+    .muted { color: var(--muted); }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 8px 24px rgba(17, 24, 39, 0.05);
+    }
+    label {
+      display: block;
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 9px;
+    }
+    select, input {
+      width: 100%;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      color: var(--text);
+      font-size: 18px;
+      padding: 14px 15px;
+      outline: none;
+    }
+    select:focus, input:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
+    }
+    button {
+      border: 0;
+      border-radius: 8px;
+      padding: 14px 18px;
+      background: var(--accent);
+      color: #fff;
+      cursor: pointer;
+      font-size: 18px;
+      font-weight: 700;
+    }
+    button:hover { background: var(--accent-2); }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    .secondary {
+      background: #e8eef3;
+      color: #1f2937;
+    }
+    .secondary:hover { background: #dfe7ef; }
+    .full { width: 100%; margin-top: 14px; }
+    .status {
+      min-height: 27px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 16px;
+      line-height: 1.45;
+    }
+    .progress {
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+    .progress span {
+      display: block;
+      height: 100%;
+      width: 0%;
+      background: var(--accent);
+      transition: width .25s ease;
+    }
+    .video-name {
+      margin-top: 12px;
+      color: var(--accent-2);
+      font-weight: 700;
+      overflow-wrap: anywhere;
+      line-height: 1.35;
+    }
+    .suggestions {
+      display: grid;
+      gap: 10px;
+    }
+    .suggestions button {
+      background: var(--soft);
+      color: var(--accent-2);
+      border: 1px solid #c9e6e1;
+      text-align: left;
+      font-size: 16px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+    .chat {
+      padding: 26px 30px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .message {
+      max-width: 900px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      padding: 17px 18px;
+      white-space: pre-wrap;
+      line-height: 1.55;
+      font-size: 18px;
+    }
+    .message.user {
+      align-self: flex-end;
+      background: var(--user);
+      border-color: #bfe3dc;
+      box-shadow: none;
+    }
+    .message.assistant { align-self: flex-start; }
+    .evidence-grid {
+      width: min(900px, 100%);
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      align-self: flex-start;
+    }
+    .evidence-card {
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 8px 20px rgba(17, 24, 39, 0.07);
+    }
+    .evidence-card img {
+      width: 100%;
+      display: block;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      background: #eef2f7;
+    }
+    .evidence-card div {
+      padding: 10px 12px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent-2);
+      line-height: 1.35;
+    }
+    .composer {
+      background: var(--panel);
+      border-top: 1px solid var(--line);
+      padding: 20px 30px;
+    }
+    .ask-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .empty {
+      color: var(--muted);
+      font-size: 17px;
+      line-height: 1.5;
+    }
+    @media (max-width: 920px) {
+      body { font-size: 17px; }
+      .app { grid-template-columns: 1fr; }
+      aside { border-right: 0; border-bottom: 1px solid var(--line); padding: 22px; }
+      main { max-height: none; min-height: 70vh; }
+      header { padding: 20px 22px; }
+      .chat { padding: 20px 22px; }
+      .composer { padding: 18px 22px; }
+      .ask-row { grid-template-columns: 1fr; }
+      h1 { font-size: 26px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <section>
+        <h1>Trợ lý hỏi đáp video</h1>
+        <p class="muted">Chọn video, nạp vào hệ thống, rồi hỏi bằng ngôn ngữ tự nhiên.</p>
+      </section>
+
+      <section class="card">
+        <label for="videoSelect">Video cần xem</label>
+        <select id="videoSelect"></select>
+        <button class="full" id="analyzeBtn">Nạp video</button>
+        <div class="status" id="analyzeStatus">Chưa nạp video.</div>
+        <div class="progress"><span id="jobProgress"></span></div>
+        <div class="video-name" id="currentVideo"></div>
+      </section>
+
+      <section class="card">
+        <h2>Câu hỏi gợi ý</h2>
+        <div class="status">Bấm một câu hoặc tự nhập câu hỏi của bạn.</div>
+        <div class="suggestions" id="quickQuestions"></div>
+      </section>
+    </aside>
+
+    <main>
+      <header>
+        <div>
+          <h2>Hỏi về nội dung video</h2>
+          <p class="muted">Có thể hỏi về người, đồ vật, màu sắc, hành động, thời điểm hoặc nguy cơ.</p>
+        </div>
+        <button class="secondary" id="refreshBtn">Cập nhật</button>
+      </header>
+
+      <section class="chat" id="chat"></section>
+
+      <section class="composer">
+        <div class="ask-row">
+          <input id="questionInput" placeholder="" autocomplete="off">
+          <button id="askBtn">Hỏi</button>
+        </div>
+        <div class="status" id="askStatus"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const state = { data: null, pollTimer: null };
+    const quickQuestions = [
+      'Có bao nhiêu người trong video?',
+      'Những người đó mặc áo màu gì?',
+      'Có bao nhiêu laptop trong video?',
+      'Có quạt nào đang xoay không và màu gì?',
+      'Trong video có hành động nguy hiểm nào không?',
+      'Người áo vàng đang làm gì?',
+      'Có chữ nào nhìn thấy trong video không?'
+    ];
+
+    const $ = (id) => document.getElementById(id);
+
+    function addMessage(role, text, evidence = []) {
+      const node = document.createElement('div');
+      node.className = `message ${role}`;
+      node.textContent = text;
+      $('chat').appendChild(node);
+      if (role === 'assistant' && evidence.length) {
+        const grid = document.createElement('div');
+        grid.className = 'evidence-grid';
+        for (const item of evidence.slice(0, 4)) {
+          if (!item.image_url) continue;
+          const card = document.createElement('div');
+          card.className = 'evidence-card';
+          const img = document.createElement('img');
+          img.src = item.image_url;
+          img.alt = item.label || 'Hình kiểm chứng';
+          const label = document.createElement('div');
+          label.textContent = item.timestamp ? `Khoảnh khắc ${item.timestamp}` : 'Hình kiểm chứng';
+          card.appendChild(img);
+          card.appendChild(label);
+          grid.appendChild(card);
+        }
+        if (grid.children.length) {
+          $('chat').appendChild(grid);
+        }
+      }
+      $('chat').scrollTop = $('chat').scrollHeight;
+    }
+
+    function setProgress(percent) {
+      $('jobProgress').style.width = `${Math.max(0, Math.min(100, Number(percent) || 0))}%`;
+    }
+
+    function setAnalyzeBusy(isBusy) {
+      $('analyzeBtn').disabled = isBusy;
+      $('videoSelect').disabled = isBusy;
+    }
+
+    function setAskBusy(isBusy) {
+      $('askBtn').disabled = isBusy;
+      $('questionInput').disabled = isBusy;
+    }
+
+    async function api(path, options = {}) {
+      const response = await fetch(path, {
+        headers: { 'Content-Type': 'application/json' },
+        ...options
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Yêu cầu không thành công');
+      return data;
+    }
+
+    async function loadState() {
+      const data = await api('/api/state');
+      state.data = data;
+      renderState();
+    }
+
+    function renderState() {
+      const data = state.data || {};
+      const events = data.events;
+      const selected = $('videoSelect').value;
+
+      $('videoSelect').innerHTML = '';
+      for (const video of data.videos || []) {
+        const option = document.createElement('option');
+        option.value = video.path;
+        option.textContent = video.path;
+        $('videoSelect').appendChild(option);
+      }
+      if (selected) $('videoSelect').value = selected;
+      if (events?.video_path) $('videoSelect').value = events.video_path;
+
+      if (events?.video_path) {
+        $('currentVideo').textContent = `Đang dùng: ${events.video_path}`;
+        $('analyzeStatus').textContent = 'Video đã sẵn sàng để hỏi.';
+        setProgress(100);
+      } else {
+        $('currentVideo').textContent = '';
+        $('analyzeStatus').textContent = 'Chưa nạp video.';
+        setProgress(0);
+      }
+    }
+
+    function renderQuickQuestions() {
+      $('quickQuestions').innerHTML = '';
+      for (const question of quickQuestions) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.textContent = question;
+        button.addEventListener('click', () => {
+          $('questionInput').value = question;
+          askQuestion();
+        });
+        $('quickQuestions').appendChild(button);
+      }
+    }
+
+    async function analyzeVideo() {
+      const videoPath = $('videoSelect').value;
+      if (!videoPath) return;
+      setAnalyzeBusy(true);
+      setProgress(0);
+      $('analyzeStatus').textContent = 'Đang nạp video...';
+      try {
+        const data = await api('/api/analyze', {
+          method: 'POST',
+          body: JSON.stringify({ video_path: videoPath, force: false })
+        });
+        pollJob(data.job_id);
+      } catch (error) {
+        $('analyzeStatus').textContent = `Không nạp được video: ${error.message}`;
+        setAnalyzeBusy(false);
+      }
+    }
+
+    async function pollJob(jobId) {
+      clearTimeout(state.pollTimer);
+      try {
+        const data = await api(`/api/jobs/${jobId}`);
+        const job = data.job;
+        const percent = Number(job?.percent ?? 0);
+        setProgress(percent);
+
+        if (job.status === 'completed') {
+          $('analyzeStatus').textContent = 'Video đã sẵn sàng để hỏi.';
+          if (job.result?.state) {
+            state.data = job.result.state;
+            renderState();
+          } else {
+            await loadState();
+          }
+          addMessage('assistant', `Đã nạp xong video: ${job.video_path}`);
+          setAnalyzeBusy(false);
+          return;
+        }
+        if (job.status === 'failed') {
+          $('analyzeStatus').textContent = `Nạp video bị lỗi: ${job.error || job.message}`;
+          setAnalyzeBusy(false);
+          return;
+        }
+
+        $('analyzeStatus').textContent = `Đang xem video... ${percent}%`;
+        state.pollTimer = setTimeout(() => pollJob(jobId), 1500);
+      } catch (error) {
+        $('analyzeStatus').textContent = `Không đọc được trạng thái: ${error.message}`;
+        setAnalyzeBusy(false);
+      }
+    }
+
+    async function askQuestion() {
+      const question = $('questionInput').value.trim();
+      if (!question) return;
+      addMessage('user', question);
+      $('questionInput').value = '';
+      $('askStatus').textContent = 'Đang suy nghĩ...';
+      setAskBusy(true);
+      try {
+        const data = await api('/api/ask', {
+          method: 'POST',
+          body: JSON.stringify({ question })
+        });
+        addMessage('assistant', data.answer, data.evidence || []);
+        state.data = data.state;
+        renderState();
+      } catch (error) {
+        addMessage('assistant', `Không trả lời được: ${error.message}`);
+      } finally {
+        $('askStatus').textContent = '';
+        setAskBusy(false);
+        $('questionInput').focus();
+      }
+    }
+
+    $('analyzeBtn').addEventListener('click', analyzeVideo);
+    $('askBtn').addEventListener('click', askQuestion);
+    $('refreshBtn').addEventListener('click', loadState);
+    $('questionInput').addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') askQuestion();
+    });
+
+    renderQuickQuestions();
+    loadState().then(() => {
+      addMessage('assistant', 'Xin chào. Hãy nạp video rồi đặt câu hỏi về những gì xuất hiện trong video.');
+    }).catch((error) => {
+      addMessage('assistant', `Không tải được danh sách video: ${error.message}`);
+    });
+  </script>
+</body>
+</html>
